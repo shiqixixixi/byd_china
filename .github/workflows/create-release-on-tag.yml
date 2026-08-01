@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - '[0-9]*.[0-9]*.[0-9]*'
   workflow_dispatch:
 
 permissions:
@@ -18,32 +19,85 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine tag
+        id: tag
+        run: |
+          set -euo pipefail
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          echo "current_tag=${CURRENT_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if release already exists
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG=${{ steps.tag.outputs.current_tag }}
+          REPO="${{ github.repository }}"
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/releases/tags/${TAG}" || true)
+          echo "release_check_status=$STATUS_CODE" >> $GITHUB_OUTPUT
+          if [ "$STATUS_CODE" = "200" ]; then
+            echo "Release for tag ${TAG} already exists. Exiting."
+            exit 0
+          fi
+          if [ "$STATUS_CODE" != "404" ] && [ "$STATUS_CODE" != "200" ]; then
+            echo "Unexpected HTTP status checking release: $STATUS_CODE"
+          fi
+
       - name: Generate release notes
         id: gen_notes
         run: |
           set -euo pipefail
-          CURRENT_TAG=${GITHUB_REF#refs/tags/}
-          # find previous tag matching vMAJOR.MINOR.PATCH (exclude current)
-          PREV_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -n1 || true)
-          if [ -n "$PREV_TAG" ]; then
-            NOTES=$(git log --pretty=format:'- %s (%h)' "${PREV_TAG}..${CURRENT_TAG}")
-          else
-            NOTES=$(git log --pretty=format:'- %s (%h)' -n 50 "${CURRENT_TAG}")
+          TAG=${{ steps.tag.outputs.current_tag }}
+          # try to find previous tag (support both v* and numeric tags)
+          PREV_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v "^${TAG}$" | head -n1 || true)
+          if [ -z "$PREV_TAG" ]; then
+            PREV_TAG=$(git tag --list '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v "^${TAG}$" | head -n1 || true)
           fi
-          if [ -z "$NOTES" ]; then
-            NOTES="No changes recorded."
+          if [ -n "$PREV_TAG" ]; then
+            git --no-pager log --pretty=format:'- %s (%h)' "${PREV_TAG}..${TAG}" > /tmp/release_notes || true
+          else
+            git --no-pager log --pretty=format:'- %s (%h)' -n 50 "${TAG}" > /tmp/release_notes || true
+          fi
+          if [ ! -s /tmp/release_notes ]; then
+            echo "No changes recorded." > /tmp/release_notes
           fi
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          echo "$NOTES" >> $GITHUB_ENV
+          cat /tmp/release_notes >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Create GitHub release
-        uses: actions/create-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
-          body: ${{ env.RELEASE_BODY }}
-          draft: false
-          prerelease: false
+      - name: Create GitHub release (if not exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG=${{ steps.tag.outputs.current_tag }}
+          BODY="${{ env.RELEASE_BODY }}"
+          REPO="${{ github.repository }}"
+          # Create release via API
+          if command -v jq >/dev/null 2>&1; then
+            PAYLOAD=$(jq -n --arg tag "$TAG" --arg name "$TAG" --arg body "$BODY" '{ tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false }')
+          else
+            PAYLOAD=$(cat <<EOF
+{"tag_name":"$TAG","name":"$TAG","body":$(printf '%s' "$BODY" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))'),"draft":false,"prerelease":false}
+EOF
+)
+          fi
+
+          RESP=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/releases" \
+            -d "$PAYLOAD")
+          BODY_RESP=$(echo "$RESP" | sed -n '1,$p' | sed -n '1,$(( $(echo "$RESP" | wc -l) - 1 ))p') || true
+          STATUS=$(echo "$RESP" | tail -n1)
+          if [ "$STATUS" = "201" ]; then
+            echo "Release created for tag $TAG"
+          else
+            echo "Failed to create release. HTTP status: $STATUS"
+            echo "$BODY_RESP"
+            exit 1
+          fi
