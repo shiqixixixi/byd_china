@@ -38,6 +38,27 @@ jobs:
           fi
           echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
 
+      - name: Bump version in manifest.json
+        env:
+          NEW_TAG: ${{ steps.next_tag.outputs.new_tag }}
+        run: |
+          set -euo pipefail
+          MANIFEST="custom_components/byd_china/manifest.json"
+          if [ ! -f "$MANIFEST" ]; then
+            echo "ERROR: $MANIFEST not found"
+            exit 1
+          fi
+          sed -i 's|"version": ".*"|"version": "'"$NEW_TAG"'"|' "$MANIFEST"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$MANIFEST"
+          if git diff --staged --quiet; then
+            echo "manifest.json already at version $NEW_TAG, skipping commit"
+          else
+            git commit -m "Bump version to $NEW_TAG [skip ci]"
+            git push origin main
+          fi
+
       - name: Create annotated tag and push
         env:
           NEW_TAG: ${{ steps.next_tag.outputs.new_tag }}
