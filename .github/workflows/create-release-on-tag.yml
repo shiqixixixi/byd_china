@@ -1,0 +1,49 @@
+name: Create GitHub Release on Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (fetch tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: gen_notes
+        run: |
+          set -euo pipefail
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          # find previous tag matching vMAJOR.MINOR.PATCH (exclude current)
+          PREV_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -n1 || true)
+          if [ -n "$PREV_TAG" ]; then
+            NOTES=$(git log --pretty=format:'- %s (%h)' "${PREV_TAG}..${CURRENT_TAG}")
+          else
+            NOTES=$(git log --pretty=format:'- %s (%h)' -n 50 "${CURRENT_TAG}")
+          fi
+          if [ -z "$NOTES" ]; then
+            NOTES="No changes recorded."
+          fi
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$NOTES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          body: ${{ env.RELEASE_BODY }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
