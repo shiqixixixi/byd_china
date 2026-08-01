@@ -1,0 +1,8 @@
+{
+  "name": "byd_china",
+  "type": "integration",
+  "render_readme": true,
+  "domains": ["sensor", "switch", "climate"],
+  "iot_class": "local_polling",
+  "homeassistant": "2026.08.01"
+}
