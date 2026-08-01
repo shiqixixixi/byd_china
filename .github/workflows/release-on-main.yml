@@ -72,23 +72,17 @@ jobs:
           if [ -z "$PREV_TAG" ]; then
             PREV_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v "^${TAG}$" | head -n1 || true)
           fi
-          rm -f /tmp/release_notes
+          NOTES_FILE=/tmp/release_notes.md
+          rm -f "$NOTES_FILE"
           if [ -n "$PREV_TAG" ]; then
-            git --no-pager log --pretty=format:'- %s (%h)' "${PREV_TAG}..${TAG}" > /tmp/release_notes || true
+            git --no-pager log --pretty=format:'- %s (%h)%n' "${PREV_TAG}..${TAG}" | dos2unix > "$NOTES_FILE" || true
           else
-            git --no-pager log --pretty=format:'- %s (%h)' -n 50 "${TAG}" > /tmp/release_notes || true
+            git --no-pager log --pretty=format:'- %s (%h)%n' -n 50 "${TAG}" | dos2unix > "$NOTES_FILE" || true
           fi
-          if [ ! -s /tmp/release_notes ]; then
-            echo "No changes recorded." > /tmp/release_notes
+          if [ ! -s "$NOTES_FILE" ]; then
+            echo "No changes recorded." > "$NOTES_FILE"
           fi
-
-          # 【关键修复】随机分隔符，避免文本包含EOF导致解析失败
-          DELIMITER=$(openssl rand -hex 16)
-          {
-            echo "RELEASE_BODY<<${DELIMITER}"
-            cat /tmp/release_notes
-            echo "${DELIMITER}"
-          } >> "$GITHUB_ENV"
+          echo "notes_path=$NOTES_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
         env:
@@ -96,9 +90,8 @@ jobs:
         run: |
           set -euo pipefail
           TAG=${{ steps.next_tag.outputs.new_tag }}
-          echo "${{ env.RELEASE_BODY }}" > /tmp/release_body.md
           gh release create "$TAG" \
             --title "$TAG" \
-            --notes-file /tmp/release_body.md \
+            --notes-file ${{ steps.gen_notes.outputs.notes_path }} \
             --latest \
             --verify-tag
