@@ -4,5 +4,5 @@
   "render_readme": true,
   "domains": ["sensor", "switch", "climate"],
   "iot_class": "local_polling",
-  "homeassistant": "2026.08.01"
+  "homeassistant": "2026.07.04"
 }
