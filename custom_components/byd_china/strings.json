@@ -142,7 +142,7 @@
       "right_rear_tire_status": { "name": "Rear right tire status" },
       "speed": { "name": "Speed" },
       "power_gear": { "name": "Power gear" },
-      "vehicle_state": {"name": "Car status"}
+      "vehicle_state": { "name": "Vehicle state" }
     },
     "binary_sensor": {},
     "device_tracker": {
