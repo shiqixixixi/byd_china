@@ -53,6 +53,7 @@
       "door_unlock": { "name": "车门解锁" },
       "door_lock": { "name": "车门上锁" },
       "open_trunk": { "name": "打开后备箱" },
+      "close_trunk": { "name": "关闭后备箱" },
       "window_close": { "name": "关闭车窗" },
       "find_car": { "name": "寻车" },
       "flash_lights": { "name": "闪灯" },

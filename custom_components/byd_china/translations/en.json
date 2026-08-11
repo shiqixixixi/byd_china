@@ -53,6 +53,7 @@
       "door_unlock": { "name": "Door unlock" },
       "door_lock": { "name": "Door lock" },
       "open_trunk": { "name": "Open trunk" },
+      "close_trunk": { "name": "Close trunk" },
       "window_close": { "name": "Close windows" },
       "find_car": { "name": "Find car" },
       "flash_lights": { "name": "Flash lights" },
