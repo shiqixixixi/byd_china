@@ -28,7 +28,7 @@ BUTTON_DESCRIPTIONS: tuple[BydButtonDescription, ...] = (
     BydButtonDescription(key="door_unlock", command_type="OPENDOOR", icon="mdi:lock-open"),
     BydButtonDescription(key="door_lock", command_type="LOCKDOOR", icon="mdi:lock"),
     BydButtonDescription(key="open_trunk", command_type="OPENTRUNK", icon="mdi:car-back"),
-    BydButtonDescription(key="close_trunk", command_type="CLOSERUNK", icon="mdi:car-back"),
+    BydButtonDescription(key="close_trunk", command_type="CLOSETRUNK", icon="mdi:car-back"),
     BydButtonDescription(key="window_close", command_type="CLOSEWINDOW", icon="mdi:car-door"),
     BydButtonDescription(key="find_car", command_type="FINDCAR", icon="mdi:car"),
     BydButtonDescription(key="flash_lights", command_type="FLASHLIGHTNOWHISTLE", icon="mdi:car-light-high"),
