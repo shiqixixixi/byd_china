@@ -274,7 +274,8 @@ SENSOR_DESCRIPTIONS: tuple[BydSensorDescription, ...] = (
     BydSensorDescription(key="cumulative_avg_consumption_electric", source="realtime", icon="mdi:ev-station", native_unit_of_measurement="kWh", suggested_display_precision=1, value_fn=_extract_kwh_value),
     # --- 车辆状态 ---
     BydSensorDescription(key="speed", source="realtime", icon="mdi:speedometer", suggested_display_precision=0),
-    BydSensorDescription(key="power_gear", source="realtime", icon="mdi:car-shift-pattern", value_fn=_power_gear_text),
+    #BydSensorDescription(key="power_gear", source="realtime", icon="mdi:car-shift-pattern", value_fn=_power_gear_text),
+    BydSensorDescription(key="power_gear", source="realtime", icon="mdi:car-shift-pattern"),
     # --- 电源状态
     BydSensorDescription(key="vehicle_state", source="realtime", icon="mdi:power"),
     # --- GPS (原始数值) ---
